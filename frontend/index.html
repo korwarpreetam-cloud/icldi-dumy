@@ -6,10 +6,10 @@
   <title>India Inflation Analytics Dashboard</title>
   <meta name="description" content="Interactive dashboard to explore inflation trends, growth rates and predictions across major Indian cities." />
 
-  <!-- Fonts & Icons -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -19,115 +19,262 @@
 </head>
 <body>
 
-  <!-- ═══════════════════  HEADER  ═══════════════════ -->
-  <header id="dashboard-header">
-    <div class="header-content">
-      <h1>📊 India Inflation Analytics</h1>
-      <p class="subtitle">Explore cost-of-living trends, growth rates &amp; predictions across major Indian cities</p>
+  <!-- ═══════════════════  SIDEBAR  ═══════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-logo" id="sidebar-logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <polygon points="14,2 26,26 2,26" stroke="#c8a951" stroke-width="2" fill="none"/>
+        <polygon points="14,8 22,24 6,24" stroke="#d4a843" stroke-width="1.5" fill="none"/>
+      </svg>
     </div>
-    <!-- Decorative animated dots -->
-    <div class="header-dots" aria-hidden="true">
-      <span></span><span></span><span></span><span></span><span></span>
+    <nav class="sidebar-nav">
+      <button class="sidebar-btn active" data-section="overview" title="Overview">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button class="sidebar-btn" data-section="trends" title="Trends">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </button>
+      <button class="sidebar-btn" data-section="city-explore" title="Explore City">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button class="sidebar-btn" data-section="predict" title="Predictions">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>
+      <button class="sidebar-btn" data-section="compare" title="Compare">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+      </button>
+      <button class="sidebar-btn" data-section="data-table" title="Data Table">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="sidebar-btn" title="Info">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </button>
     </div>
-  </header>
+  </aside>
 
-  <main id="app">
+  <!-- ═══════════════════  MAIN WRAPPER  ═══════════════════ -->
+  <div id="main-wrapper">
 
-    <!-- ═══════════════  SUMMARY CARDS  ═══════════════ -->
-    <section id="summary-section" class="section fade-in">
-      <h2 class="section-title"><span class="title-icon">📋</span> Overview</h2>
-      <div id="summary-cards" class="cards-row">
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-      </div>
-    </section>
-
-    <!-- ═══════════════  CITY SELECTOR  ═══════════════ -->
-    <section id="city-selector-section" class="section fade-in">
-      <h2 class="section-title"><span class="title-icon">🔍</span> Explore a City</h2>
-      <div class="selector-row">
-        <div>
-          <label for="city-select">Select City</label>
-          <select id="city-select" disabled>
-            <option value="">Loading cities…</option>
-          </select>
+    <!-- ═══════════════════  TOP NAV  ═══════════════════ -->
+    <header id="topnav">
+      <div class="topnav-left">
+        <div class="search-box" id="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search-input" placeholder="Search cities..." autocomplete="off" />
         </div>
       </div>
-    </section>
-
-    <!-- ═══════ Loading spinner (shown while fetching data) ═══════ -->
-    <div id="city-loading" class="loader-container hidden">
-      <div class="spinner"></div>
-      <p>Loading data…</p>
-    </div>
-
-    <!-- ═══════════════  CITY DATA TABLE  ═══════════════ -->
-    <section id="city-data-section" class="section hidden fade-in">
-      <h2 class="section-title"><span class="title-icon">📄</span> Yearly Data — <span id="city-data-label"></span></h2>
-      <div class="table-wrap">
-        <table id="city-data-table">
-          <thead><tr></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ═══════════════  TREND CHART  ═══════════════ -->
-    <section id="trend-section" class="section hidden fade-in">
-      <h2 class="section-title"><span class="title-icon">📈</span> Cost Trends — <span id="trend-label"></span></h2>
-      <div class="chart-container">
-        <canvas id="trend-chart"></canvas>
-      </div>
-    </section>
-
-    <!-- ═══════════════  GROWTH CHART  ═══════════════ -->
-    <section id="growth-section" class="section hidden fade-in">
-      <h2 class="section-title"><span class="title-icon">📊</span> Year-wise Growth % — <span id="growth-label"></span></h2>
-      <div class="chart-container">
-        <canvas id="growth-chart"></canvas>
-      </div>
-    </section>
-
-    <!-- ═══════════════  PREDICTION  ═══════════════ -->
-    <section id="predict-section" class="section hidden fade-in">
-      <h2 class="section-title"><span class="title-icon">🔮</span> Predicted Values — <span id="predict-label"></span></h2>
-      <div id="predict-cards" class="cards-row"></div>
-    </section>
-
-    <!-- ═══════════════  COMPARISON  ═══════════════ -->
-    <section id="compare-section" class="section fade-in">
-      <h2 class="section-title"><span class="title-icon">⚖️</span> Compare Two Cities</h2>
-      <div class="selector-row two-cols">
-        <div>
-          <label for="compare-city1">City 1</label>
-          <select id="compare-city1" disabled><option value="">Loading…</option></select>
-        </div>
-        <div>
-          <label for="compare-city2">City 2</label>
-          <select id="compare-city2" disabled><option value="">Loading…</option></select>
-        </div>
-        <button id="compare-btn" class="btn" disabled>
-          <span class="btn-text">Compare</span>
-        </button>
-      </div>
-      <div id="compare-loading" class="loader-container hidden">
-        <div class="spinner"></div>
-        <p>Comparing…</p>
-      </div>
-      <div id="compare-result" class="hidden" style="margin-top:1.5rem">
-        <div class="chart-container">
-          <canvas id="compare-chart"></canvas>
+      <div class="topnav-center">
+        <div class="url-pill" id="url-pill">
+          <span>India Inflation Analytics Dashboard</span>
+          <button class="copy-btn" id="copy-btn" title="Copy link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
       </div>
-    </section>
+      <div class="topnav-right">
+        <button class="share-btn" id="share-btn">Share</button>
+        <div class="avatar" id="user-avatar">P</div>
+      </div>
+    </header>
 
-  </main>
+    <!-- ═══════════════════  CONTENT  ═══════════════════ -->
+    <main id="content">
 
-  <!-- ═══════════════  FOOTER  ═══════════════ -->
-  <footer>
-    <p>Built with <strong>Python</strong>, <strong>Flask</strong> &amp; <strong>Chart.js</strong> — India Inflation Analytics Dashboard &copy; 2026</p>
-  </footer>
+      <!-- ═══════════════  OVERVIEW SECTION  ═══════════════ -->
+      <div id="section-overview" class="dashboard-section active-section">
+
+        <!-- Top Row: Inflation Overview + Summary Panel -->
+        <div class="top-grid">
+          <div class="panel panel-main">
+            <div class="panel-header">
+              <h2 class="panel-title">Inflation Overview</h2>
+              <div class="panel-controls">
+                <select id="city-select-overview" class="panel-select">
+                  <option value="">Loading…</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="stats-row" id="stats-row">
+              <div class="stat-item">
+                <span class="stat-label">Total Cities</span>
+                <span class="stat-value" id="stat-cities">—</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Year Range</span>
+                <span class="stat-value" id="stat-years">—</span>
+              </div>
+            </div>
+
+            <div class="chart-area" id="overview-chart-area">
+              <canvas id="trend-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Payout-style summary card (dark) -->
+          <div class="panel panel-dark panel-summary" id="panel-summary">
+            <h3 class="panel-summary-title">Summary</h3>
+
+            <div class="summary-stat">
+              <span class="summary-stat-label">Highest Inflation</span>
+              <span class="summary-stat-value highlight-green" id="summary-highest-city">—</span>
+            </div>
+            <div class="summary-stat">
+              <span class="summary-stat-label">Cities Tracked</span>
+              <span class="summary-stat-value highlight-gold" id="summary-cities-count">—</span>
+            </div>
+            <div class="summary-stat">
+              <span class="summary-stat-label">Data Since</span>
+              <span class="summary-stat-value highlight-coral" id="summary-since">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Growth Chart, Category Breakdown, Predictions Table -->
+        <div class="bottom-grid">
+          <!-- Growth Chart  -->
+          <div class="panel panel-bottom" id="growth-panel">
+            <h3 class="panel-subtitle">Category Breakdown</h3>
+            <div class="chart-area chart-area-sm">
+              <canvas id="category-donut"></canvas>
+            </div>
+          </div>
+
+          <!-- Category Bar Chart -->
+          <div class="panel panel-bottom" id="category-bar-panel">
+            <h3 class="panel-subtitle">Growth Trends</h3>
+            <div class="chart-area chart-area-sm">
+              <canvas id="growth-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Quick Table -->
+          <div class="panel panel-bottom panel-table" id="quick-table-panel">
+            <div class="panel-table-header">
+              <h3 class="panel-subtitle">Yearly Data</h3>
+              <span class="view-all-link" id="view-all-link">View All</span>
+            </div>
+            <div class="mini-table-wrap">
+              <table id="mini-table">
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th>Food</th>
+                    <th>Fuel</th>
+                  </tr>
+                </thead>
+                <tbody id="mini-table-body">
+                  <tr><td colspan="3" class="table-placeholder">Select a city</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════  TRENDS SECTION  ═══════════════ -->
+      <div id="section-trends" class="dashboard-section">
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">📈 Cost Trends — <span id="trend-city-label">Select a City</span></h2>
+            <select id="city-select-trend" class="panel-select">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+          <div class="chart-area chart-area-lg">
+            <canvas id="trend-chart-full"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════  CITY EXPLORE SECTION  ═══════════════ -->
+      <div id="section-city-explore" class="dashboard-section">
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">🔍 Explore a City</h2>
+            <select id="city-select" class="panel-select" disabled>
+              <option value="">Loading cities…</option>
+            </select>
+          </div>
+
+          <div id="city-loading" class="loader-container hidden">
+            <div class="spinner"></div>
+            <p>Loading data…</p>
+          </div>
+
+          <div id="city-data-section" class="hidden">
+            <h3 class="panel-subtitle" style="margin-bottom:.75rem">📄 Yearly Data — <span id="city-data-label"></span></h3>
+            <div class="table-wrap">
+              <table id="city-data-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════  PREDICT SECTION  ═══════════════ -->
+      <div id="section-predict" class="dashboard-section">
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">🔮 Predicted Values — <span id="predict-label">Select a City</span></h2>
+            <select id="city-select-predict" class="panel-select">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+          <div id="predict-cards" class="predict-grid"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════  COMPARE SECTION  ═══════════════ -->
+      <div id="section-compare" class="dashboard-section">
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">⚖️ Compare Two Cities</h2>
+            <div class="compare-controls">
+              <select id="compare-city1" class="panel-select" disabled><option value="">Loading…</option></select>
+              <span class="vs-text">vs</span>
+              <select id="compare-city2" class="panel-select" disabled><option value="">Loading…</option></select>
+              <button id="compare-btn" class="action-btn" disabled>Compare</button>
+            </div>
+          </div>
+          <div id="compare-loading" class="loader-container hidden">
+            <div class="spinner"></div>
+            <p>Comparing…</p>
+          </div>
+          <div id="compare-result" class="hidden">
+            <div class="chart-area chart-area-lg">
+              <canvas id="compare-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════  DATA TABLE SECTION  ═══════════════ -->
+      <div id="section-data-table" class="dashboard-section">
+        <div class="full-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">📄 Full Data Table</h2>
+            <select id="city-select-table" class="panel-select">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+          <div id="full-table-section" class="hidden">
+            <div class="table-wrap">
+              <table id="full-data-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
 
   <!-- ═══════════════  TOAST  ═══════════════ -->
   <div id="toast" class="toast hidden"></div>

@@ -1,43 +1,38 @@
 /* ============================================================
-   India Inflation Analytics Dashboard — Script
-   ============================================================
-   Connects to the Flask backend API and renders data into
-   the dashboard DOM.  Uses Chart.js for visualisations.
-   
-   All API calls are made to the same origin (Flask serves
-   both the API and the frontend static files).
+   India Inflation Analytics Dashboard — Refactored Script
+   Matched with the redesigned HTML & CSS
    ============================================================ */
 
 // ─── Configuration ─────────────────────────────────────────
-const API_BASE = "";   // same-origin — Flask serves everything
+const API_BASE = ""; 
 
 const CATEGORIES = ["Food", "Fuel", "Rent", "Transport", "Utilities", "Entertainment"];
 const CAT_ICONS  = ["🍔", "⛽", "🏠", "🚗", "💡", "🎬"];
 
-// Chart.js colour palette (matches CSS accent colours)
-const CHART_COLORS = [
-  "rgba(108,  99, 255, 1)",   // accent / purple
-  "rgba( 52, 211, 153, 1)",   // green
-  "rgba(251, 191,  36, 1)",   // amber
-  "rgba( 34, 211, 238, 1)",   // cyan
-  "rgba(244, 114, 182, 1)",   // pink
-  "rgba(251, 146,  60, 1)",   // orange
+// Palette matching new CSS
+const COLORS = [
+  "rgba(200, 169, 81, 1)",   // Gold
+  "rgba(76, 175, 80, 1)",    // Green
+  "rgba(232, 117, 110, 1)",  // Coral
+  "rgba(91, 192, 222, 1)",   // Cyan
+  "rgba(232, 108, 165, 1)",  // Pink
+  "rgba(139, 108, 198, 1)",  // Purple
 ];
-const CHART_COLORS_BG = CHART_COLORS.map(c => c.replace(", 1)", ", .20)"));
-
+const COLORS_BG = COLORS.map(c => c.replace(", 1)", ", .20)"));
 
 // ─── State ─────────────────────────────────────────────────
-let citiesList   = [];
-let trendChart   = null;
-let growthChart  = null;
-let compareChart = null;
+let citiesList      = [];
+let overviewChart   = null;
+let categoryDonut   = null;
+let growthBarChart  = null;
+let fullTrendChart  = null;
+let compareChart    = null;
 
 
 // ═══════════════════════════════════════════════════════════
-//  HELPERS
+//  HELPERS & CHART CONFIG
 // ═══════════════════════════════════════════════════════════
 
-/** Fetch JSON from an API endpoint. Throws on HTTP errors. */
 async function apiFetch(path) {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
@@ -47,7 +42,6 @@ async function apiFetch(path) {
   return res.json();
 }
 
-/** Display a red toast notification for 3.5 seconds. */
 function showToast(message) {
   const el = document.getElementById("toast");
   el.textContent = message;
@@ -57,354 +51,357 @@ function showToast(message) {
   setTimeout(() => el.classList.add("hidden"), 3800);
 }
 
-/** Format a number with Indian locale (e.g. 12,500). */
 function formatNum(n) {
   if (n === null || n === undefined) return "—";
-  return Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  return Number(n).toLocaleString("en-IN", { maximumFractionDigits: 1 });
 }
 
-/** Show / hide elements by ID. */
-function show(id) { document.getElementById(id).classList.remove("hidden"); }
-function hide(id) { document.getElementById(id).classList.add("hidden"); }
-
-/** Populate a <select> element with city options. */
 function populateSelect(id, options, placeholder) {
   const sel = document.getElementById(id);
+  if (!sel) return;
   sel.innerHTML =
     `<option value="">${placeholder}</option>` +
     options.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.color = "#a0a0a0";
+
+const buildChartOptions = (yLabel, isDonut = false) => {
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: isDonut ? 'right' : 'top',
+        labels: {
+          color: "#7a7a7a",
+          usePointStyle: true,
+          boxWidth: 8,
+          padding: 16,
+          font: { size: 11, weight: '500' }
+        }
+      },
+      tooltip: {
+        backgroundColor: "rgba(26,26,26,0.95)",
+        titleFont: { size: 13, weight: '700' },
+        bodyFont: { size: 12 },
+        padding: 12,
+        cornerRadius: 6,
+        displayColors: true,
+      }
+    }
+  };
+
+  if (!isDonut) {
+    opts.scales = {
+      x: { grid: { display: false } },
+      y: {
+        border: { display: false },
+        grid: { color: "rgba(0,0,0,0.04)" },
+        title: { display: !!yLabel, text: yLabel, font: { size: 11 } }
+      }
+    };
+    opts.interaction = { mode: "index", intersect: false };
+  }
+  return opts;
+};
+
 
 // ═══════════════════════════════════════════════════════════
-//  1. SUMMARY CARDS  (fetches /summary)
+//  UI NAVIGATION
 // ═══════════════════════════════════════════════════════════
 
-async function loadSummary() {
+document.querySelectorAll('.sidebar-btn[data-section]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    // Nav logic
+    document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+    const target = e.currentTarget;
+    target.classList.add('active');
+
+    const sectionId = 'section-' + target.dataset.section;
+    document.querySelectorAll('.dashboard-section').forEach(sec => sec.classList.remove('active-section'));
+    document.getElementById(sectionId).classList.add('active-section');
+    
+    // Resize charts in the new active section because they might render tiny when hidden
+    const charts = Chart.instances;
+    Object.values(charts).forEach(chart => chart.resize());
+  });
+});
+
+document.getElementById('share-btn').addEventListener('click', () => {
+  showToast("Ready to share (Demo mode)");
+});
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(window.location.href);
+  showToast("Link copied to clipboard!");
+});
+
+
+// ═══════════════════════════════════════════════════════════
+//  DATA LOADING
+// ═══════════════════════════════════════════════════════════
+
+async function loadInitialData() {
   try {
-    const data = await apiFetch("/summary");
-    document.getElementById("summary-cards").innerHTML = `
-      <div class="summary-card">
-        <div class="card-icon">🏙️</div>
-        <div class="card-label">Total Cities</div>
-        <div class="card-value">${data.total_cities}</div>
-      </div>
-      <div class="summary-card">
-        <div class="card-icon">📅</div>
-        <div class="card-label">Year Range</div>
-        <div class="card-value">${data.year_range[0]} – ${data.year_range[1]}</div>
-      </div>
-      <div class="summary-card">
-        <div class="card-icon">🔥</div>
-        <div class="card-label">Highest Inflation</div>
-        <div class="card-value">${data.highest_inflation_city}</div>
-      </div>`;
+    const summaryData = await apiFetch("/summary");
+    document.getElementById("stat-cities").textContent = summaryData.total_cities;
+    document.getElementById("stat-years").textContent = `${summaryData.year_range[0]} – ${summaryData.year_range[1]}`;
+    
+    document.getElementById("summary-highest-city").textContent = summaryData.highest_inflation_city;
+    document.getElementById("summary-cities-count").textContent = summaryData.total_cities;
+    document.getElementById("summary-since").textContent = summaryData.year_range[0];
+
+    const citiesData = await apiFetch("/cities");
+    citiesList = citiesData.cities;
+
+    populateSelect("city-select-overview", citiesList, "Select City");
+    populateSelect("city-select-trend", citiesList, "Select City");
+    populateSelect("city-select", citiesList, "Select City");
+    populateSelect("city-select-predict", citiesList, "Select City");
+    populateSelect("compare-city1", citiesList, "City 1");
+    populateSelect("compare-city2", citiesList, "City 2");
+    populateSelect("city-select-table", citiesList, "Select City");
+
+    document.getElementById("city-select").disabled = false;
+    document.getElementById("compare-city1").disabled = false;
+    document.getElementById("compare-city2").disabled = false;
+    document.getElementById("compare-btn").disabled = false;
+
+    // Load default data for first city in list to populate Overview
+    if (citiesList.length > 0) {
+      document.getElementById("city-select-overview").value = citiesList[0];
+      loadOverviewData(citiesList[0]);
+    }
+
   } catch (err) {
-    showToast("Failed to load summary: " + err.message);
+    showToast("Failed to load generic data.");
   }
 }
 
-
-// ═══════════════════════════════════════════════════════════
-//  2. CITY DROPDOWNS  (fetches /cities)
-// ═══════════════════════════════════════════════════════════
-
-async function loadCities() {
-  try {
-    const data = await apiFetch("/cities");
-    citiesList = data.cities;
-
-    populateSelect("city-select",   citiesList, "— Choose a city —");
-    populateSelect("compare-city1", citiesList, "— City 1 —");
-    populateSelect("compare-city2", citiesList, "— City 2 —");
-
-    document.getElementById("city-select").disabled   = false;
-    document.getElementById("compare-city1").disabled  = false;
-    document.getElementById("compare-city2").disabled  = false;
-    document.getElementById("compare-btn").disabled    = false;
-  } catch (err) {
-    showToast("Failed to load cities: " + err.message);
-  }
-}
-
-
-// ═══════════════════════════════════════════════════════════
-//  3. CITY DATA TABLE  (fetches /city-data)
-// ═══════════════════════════════════════════════════════════
-
-async function loadCityData(city) {
+// ─── OVERVIEW SECTION ───
+async function loadOverviewData(city) {
   try {
     const data = await apiFetch(`/city-data?city=${encodeURIComponent(city)}`);
-    document.getElementById("city-data-label").textContent = city;
-    renderTable(data.data);
-    show("city-data-section");
-    renderTrendChart(data.data, city);
-    show("trend-section");
-  } catch (err) {
-    hide("city-data-section");
-    hide("trend-section");
-    showToast(err.message);
+    const growth = await apiFetch(`/city-growth?city=${encodeURIComponent(city)}`);
+    
+    renderOverviewCharts(data.data, growth.growth);
+    renderMiniTable(data.data);
+  } catch(err) {
+    showToast("Failed to load overview data.");
   }
 }
 
-function renderTable(rows) {
-  const table = document.getElementById("city-data-table");
-  const cols  = ["Year", ...CATEGORIES];
-
-  table.querySelector("thead tr").innerHTML =
-    cols.map(c => `<th>${c}</th>`).join("");
-  table.querySelector("tbody").innerHTML =
-    rows.map(r =>
-      `<tr>${cols.map(c =>
-        `<td>${c === "Year" ? r[c] : formatNum(r[c])}</td>`
-      ).join("")}</tr>`
-    ).join("");
-}
-
-function renderTrendChart(rows, city) {
-  const ctx = document.getElementById("trend-chart");
-  if (trendChart) trendChart.destroy();
-
-  document.getElementById("trend-label").textContent = city;
-
-  const labels   = rows.map(r => r.Year);
-  const datasets = CATEGORIES.map((cat, i) => ({
+function renderOverviewCharts(rows, growthRows) {
+  // Line Chart
+  if (overviewChart) overviewChart.destroy();
+  const ctxLine = document.getElementById("trend-chart");
+  const labels = rows.map(r => r.Year);
+  const datasetsLine = CATEGORIES.map((cat, i) => ({
     label: cat,
     data: rows.map(r => r[cat]),
-    borderColor: CHART_COLORS[i],
-    backgroundColor: CHART_COLORS_BG[i],
-    tension: .35,
-    pointRadius: 5,
-    pointHoverRadius: 8,
-    borderWidth: 2.5,
-    fill: false,
+    borderColor: COLORS[i],
+    backgroundColor: COLORS_BG[i],
+    tension: .3,
+    pointRadius: 3,
+    borderWidth: 2,
   }));
-
-  trendChart = new Chart(ctx, {
+  overviewChart = new Chart(ctxLine, {
     type: "line",
-    data: { labels, datasets },
+    data: { labels, datasets: datasetsLine },
     options: buildChartOptions("Cost (₹)"),
   });
-}
 
+  // Donut (Latest year costs)
+  if (categoryDonut) categoryDonut.destroy();
+  const ctxDonut = document.getElementById("category-donut");
+  const latestRow = rows[rows.length - 1];
+  categoryDonut = new Chart(ctxDonut, {
+    type: "doughnut",
+    data: {
+      labels: CATEGORIES,
+      datasets: [{
+        data: CATEGORIES.map(c => latestRow[c]),
+        backgroundColor: COLORS,
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
+    },
+    options: buildChartOptions("", true),
+  });
 
-// ═══════════════════════════════════════════════════════════
-//  4. GROWTH CHART  (fetches /city-growth)
-// ═══════════════════════════════════════════════════════════
-
-async function loadGrowth(city) {
-  try {
-    const data = await apiFetch(`/city-growth?city=${encodeURIComponent(city)}`);
-    document.getElementById("growth-label").textContent = city;
-    renderGrowthChart(data.growth);
-    show("growth-section");
-  } catch (err) {
-    hide("growth-section");
-    showToast(err.message);
-  }
-}
-
-function renderGrowthChart(rows) {
-  const ctx = document.getElementById("growth-chart");
-  if (growthChart) growthChart.destroy();
-
-  const labels   = rows.map(r => r.Year);
-  const datasets = CATEGORIES.map((cat, i) => ({
-    label: cat,
-    data: rows.map(r => r[`${cat}_Growth_%`]),
-    borderColor: CHART_COLORS[i],
-    backgroundColor: CHART_COLORS_BG[i],
-    tension: .35,
-    pointRadius: 4,
-    pointHoverRadius: 7,
-    borderWidth: 2,
-    fill: false,
-  }));
-
-  growthChart = new Chart(ctx, {
-    type: "line",
-    data: { labels, datasets },
+  // Bar Chart (Growth latest year)
+  if (growthBarChart) growthBarChart.destroy();
+  const ctxBar = document.getElementById("growth-chart");
+  const latestGrowth = growthRows[growthRows.length - 1];
+  growthBarChart = new Chart(ctxBar, {
+    type: "bar",
+    data: {
+      labels: CATEGORIES,
+      datasets: [{
+        label: "Growth % (" + latestGrowth.Year + ")",
+        data: CATEGORIES.map(c => latestGrowth[`${c}_Growth_%`]),
+        backgroundColor: "rgba(200, 169, 81, 0.8)",
+        borderRadius: 4
+      }]
+    },
     options: buildChartOptions("Growth %"),
   });
 }
 
-
-// ═══════════════════════════════════════════════════════════
-//  5. PREDICTION CARDS  (fetches /predict)
-// ═══════════════════════════════════════════════════════════
-
-async function loadPredict(city) {
-  try {
-    const data = await apiFetch(`/predict?city=${encodeURIComponent(city)}`);
-    const pred = data.prediction;
-
-    document.getElementById("predict-label").textContent =
-      `${city} (${Math.round(pred.Year)})`;
-
-    document.getElementById("predict-cards").innerHTML =
-      CATEGORIES.map((cat, i) => `
-        <div class="predict-card">
-          <div class="card-icon">${CAT_ICONS[i]}</div>
-          <div class="card-label">${cat}</div>
-          <div class="predict-value">₹${formatNum(pred[cat])}</div>
-        </div>
-      `).join("");
-
-    show("predict-section");
-  } catch (err) {
-    hide("predict-section");
-    showToast(err.message);
-  }
+function renderMiniTable(rows) {
+  const tbody = document.getElementById("mini-table-body");
+  const recent = rows.slice(-4).reverse(); // Last 4 years
+  tbody.innerHTML = recent.map(r => 
+    `<tr>
+      <td><strong>${r.Year}</strong></td>
+      <td>₹${formatNum(r.Food)}</td>
+      <td>₹${formatNum(r.Fuel)}</td>
+    </tr>`
+  ).join("");
 }
 
+document.getElementById("city-select-overview").addEventListener("change", (e) => {
+  if (e.target.value) loadOverviewData(e.target.value);
+});
 
-// ═══════════════════════════════════════════════════════════
-//  6. COMPARISON  (fetches /compare)
-// ═══════════════════════════════════════════════════════════
 
-async function loadCompare(c1, c2) {
-  show("compare-loading");
-  hide("compare-result");
-  try {
-    const data = await apiFetch(
-      `/compare?city1=${encodeURIComponent(c1)}&city2=${encodeURIComponent(c2)}`
-    );
-    renderCompareChart(data.data, c1, c2);
-    show("compare-result");
-  } catch (err) {
-    hide("compare-result");
-    showToast(err.message);
-  } finally {
-    hide("compare-loading");
-  }
-}
-
-function renderCompareChart(rows, c1, c2) {
-  const ctx = document.getElementById("compare-chart");
-  if (compareChart) compareChart.destroy();
-
-  // Latest-year row for each city
-  const latest1 = rows.filter(r => r.City === c1).pop();
-  const latest2 = rows.filter(r => r.City === c2).pop();
-  if (!latest1 || !latest2) { showToast("Comparison data is incomplete"); return; }
-
-  compareChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: CATEGORIES,
-      datasets: [
-        {
-          label: c1,
-          data: CATEGORIES.map(c => latest1[c]),
-          backgroundColor: "rgba(108,99,255,.70)",
-          borderRadius: 6,
-          barPercentage: .45,
-        },
-        {
-          label: c2,
-          data: CATEGORIES.map(c => latest2[c]),
-          backgroundColor: "rgba(52,211,153,.70)",
-          borderRadius: 6,
-          barPercentage: .45,
-        },
-      ],
-    },
-    options: buildChartOptions(`Cost Comparison — Latest Year`),
+// ─── TRENDS SECTION ───
+document.getElementById("city-select-trend").addEventListener("change", async (e) => {
+  const city = e.target.value;
+  if (!city) return;
+  document.getElementById("trend-city-label").textContent = city;
+  
+  const data = await apiFetch(`/city-data?city=${encodeURIComponent(city)}`);
+  
+  if (fullTrendChart) fullTrendChart.destroy();
+  const ctx = document.getElementById("trend-chart-full");
+  const labels = data.data.map(r => r.Year);
+  const datasets = CATEGORIES.map((cat, i) => ({
+    label: cat,
+    data: data.data.map(r => r[cat]),
+    borderColor: COLORS[i],
+    backgroundColor: COLORS_BG[i],
+    tension: .4,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    borderWidth: 2.5,
+    fill: true
+  }));
+  
+  fullTrendChart = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets },
+    options: buildChartOptions("Cost (₹)"),
   });
-}
+});
 
 
-// ═══════════════════════════════════════════════════════════
-//  SHARED CHART OPTIONS
-// ═══════════════════════════════════════════════════════════
-
-function buildChartOptions(yAxisLabel) {
-  return {
-    responsive: true,
-    maintainAspectRatio: true,
-    interaction: { mode: "index", intersect: false },
-    plugins: {
-      legend: {
-        labels: {
-          color: "#eaedf1",
-          font: { family: "'Inter', sans-serif", size: 12 },
-          usePointStyle: true,
-          pointStyle: "circle",
-          padding: 18,
-        },
-      },
-      tooltip: {
-        backgroundColor: "#1f2335",
-        borderColor: "rgba(255,255,255,.08)",
-        borderWidth: 1,
-        titleFont: { family: "'Inter', sans-serif", weight: "600" },
-        bodyFont:  { family: "'Inter', sans-serif" },
-        padding: 12,
-        cornerRadius: 8,
-      },
-    },
-    scales: {
-      x: {
-        ticks: { color: "#8b92a5", font: { family: "'Inter', sans-serif" } },
-        grid:  { color: "rgba(255,255,255,.04)" },
-      },
-      y: {
-        title: { display: true, text: yAxisLabel, color: "#8b92a5", font: { family: "'Inter', sans-serif" } },
-        ticks: { color: "#8b92a5" },
-        grid:  { color: "rgba(255,255,255,.04)" },
-      },
-    },
-  };
-}
-
-
-// ═══════════════════════════════════════════════════════════
-//  EVENT LISTENERS
-// ═══════════════════════════════════════════════════════════
-
-// City selector → load data + growth + prediction
+// ─── CITY EXPLORE (Full Table) ───
 document.getElementById("city-select").addEventListener("change", async (e) => {
   const city = e.target.value;
   if (!city) {
-    hide("city-data-section");
-    hide("trend-section");
-    hide("growth-section");
-    hide("predict-section");
+    document.getElementById("city-data-section").classList.add("hidden");
     return;
   }
-
-  // Show spinner, hide old data
-  show("city-loading");
-  hide("city-data-section");
-  hide("trend-section");
-  hide("growth-section");
-  hide("predict-section");
-
-  await Promise.all([
-    loadCityData(city),
-    loadGrowth(city),
-    loadPredict(city),
-  ]);
-
-  hide("city-loading");
+  
+  document.getElementById("city-loading").classList.remove("hidden");
+  document.getElementById("city-data-section").classList.add("hidden");
+  
+  try {
+    const data = await apiFetch(`/city-data?city=${encodeURIComponent(city)}`);
+    document.getElementById("city-data-label").textContent = city;
+    
+    const table = document.getElementById("city-data-table");
+    const cols = ["Year", ...CATEGORIES];
+    table.querySelector("thead tr").innerHTML = cols.map(c => `<th>${c}</th>`).join("");
+    table.querySelector("tbody").innerHTML = data.data.map(r =>
+      `<tr>${cols.map(c => `<td>${c === "Year" ? r[c] : formatNum(r[c])}</td>`).join("")}</tr>`
+    ).join("");
+    
+    document.getElementById("city-data-section").classList.remove("hidden");
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    document.getElementById("city-loading").classList.add("hidden");
+  }
 });
 
-// Compare button
-document.getElementById("compare-btn").addEventListener("click", () => {
+
+// ─── PREDICT SECTION ───
+document.getElementById("city-select-predict").addEventListener("change", async (e) => {
+  const city = e.target.value;
+  if (!city) return;
+  
+  try {
+    const data = await apiFetch(`/predict?city=${encodeURIComponent(city)}`);
+    const pred = data.prediction;
+    
+    document.getElementById("predict-label").textContent = `${city} (${Math.round(pred.Year)})`;
+    
+    document.getElementById("predict-cards").innerHTML = CATEGORIES.map((cat, i) => `
+      <div class="predict-card">
+        <div class="predict-icon">${CAT_ICONS[i]}</div>
+        <div class="predict-label">${cat}</div>
+        <div class="predict-value">₹${formatNum(pred[cat])}</div>
+      </div>
+    `).join("");
+  } catch(err) {
+    showToast(err.message);
+  }
+});
+
+
+// ─── COMPARE SECTION ───
+document.getElementById("compare-btn").addEventListener("click", async () => {
   const c1 = document.getElementById("compare-city1").value;
   const c2 = document.getElementById("compare-city2").value;
+  if (!c1 || !c2) { showToast("Select both cities"); return; }
+  
+  document.getElementById("compare-loading").classList.remove("hidden");
+  document.getElementById("compare-result").classList.add("hidden");
+  
+  try {
+    const data = await apiFetch(`/compare?city1=${encodeURIComponent(c1)}&city2=${encodeURIComponent(c2)}`);
+    const rows = data.data;
+    
+    const latest1 = rows.filter(r => r.City === c1).pop();
+    const latest2 = rows.filter(r => r.City === c2).pop();
+    
+    if (compareChart) compareChart.destroy();
+    compareChart = new Chart(document.getElementById("compare-chart"), {
+      type: "bar",
+      data: {
+        labels: CATEGORIES,
+        datasets: [
+          { label: c1, data: CATEGORIES.map(c => latest1[c]), backgroundColor: COLORS[0], borderRadius: 4 },
+          { label: c2, data: CATEGORIES.map(c => latest2[c]), backgroundColor: COLORS[1], borderRadius: 4 },
+        ]
+      },
+      options: buildChartOptions("Latest Year Cost (₹)")
+    });
+    
+    document.getElementById("compare-result").classList.remove("hidden");
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    document.getElementById("compare-loading").classList.add("hidden");
+  }
+});
 
-  if (!c1 || !c2) { showToast("Please select both cities"); return; }
-  if (c1 === c2)  { showToast("Please select two different cities"); return; }
-
-  loadCompare(c1, c2);
+// Full Data Table view all hook
+document.getElementById("view-all-link").addEventListener("click", () => {
+  const city = document.getElementById("city-select-overview").value;
+  if (city) {
+    document.getElementById("city-select").value = city;
+    document.getElementById("city-select").dispatchEvent(new Event("change"));
+  }
+  document.querySelector('.sidebar-btn[data-section="city-explore"]').click();
 });
 
 
-// ═══════════════════════════════════════════════════════════
-//  INITIALISATION
-// ═══════════════════════════════════════════════════════════
-
+// Initialization
 (async () => {
-  await Promise.all([loadSummary(), loadCities()]);
+  await loadInitialData();
 })();
